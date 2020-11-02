@@ -20,7 +20,7 @@ c ---------------------------<< constants >>---------------------------
       parameter ( maxnzone = 15 )
       parameter ( maxlmax = 80000 )
       parameter ( maxnr =  100000 )    ! number of xy-perturbations
-      parameter ( maxnstack = 50 ) ! number of z-perturbations
+      parameter ( maxnstack = 150 ) ! number of z-perturbations
       parameter ( ilog = 0 )
       parameter ( iup = 1)      ! 0-both; 1-onlyLCD
 c ---------------------------<< variables >>---------------------------
@@ -163,7 +163,7 @@ ccccc ****************MPI*******************
       integer :: filenum, mpios
       integer :: outputmemory   ! MB
       integer :: outputinterval
-      real(8) :: memoryperomega ! MB
+      real*8 :: memoryperomega ! MB
 c     memoryperomega = (9+27)*16*maxnstack * maxnr*0.000001
       integer :: outputindex
       integer, allocatable, dimension (:) :: outputi
@@ -175,7 +175,7 @@ c       memoryperomega is the quantity of memory used for one omega step
       integer, allocatable, dimension (:) :: mpimin, mpimax
       character *2 :: char_rank
       double precision :: ark, angel
-      data outputmemory /8000/
+      data outputmemory /20000/
       call mpi_init (ierr)
       call MPI_COMM_SIZE (MPI_COMM_WORLD, PETOT, ierr)
       call MPI_COMM_RANK (MPI_COMM_WORLD, my_rank, ierr)
@@ -256,12 +256,21 @@ c
      $     MPI_COMM_WORLD, ierr)
       call MPI_BCAST (nsta, 1, MPI_INTEGER, 0,
      $     MPI_COMM_WORLD, ierr)
-      write (*,*) "got parameters"
+      write (*,*) my_rank, "got parameters"
 ccccccccccccccccccccccc
-      memoryperomega = 3*27*16*nsta*nr*0.000001
+      memoryperomega = 3d0*27d0*16d0*dble(nsta)*dble(nr)*0.000001
       outputinterval = outputmemory/memoryperomega != integer*nr
 c
       if(outputinterval.gt.(np+1)) outputinterval=np+1
+      if (outputinterval.lt.1) then
+         write(*,*) "Problem with outputinterval", outputinterval
+         write(*,*) "nsta=", nsta, " nr=", nr
+         write(*,*) "memoryperomega=", memoryperomega
+         write(*,*) "outputmemory=", outputmemory
+         write(*,*) "Possible solution: increase outputmemory"
+         call mpi_finalize(ierr)
+         stop
+      endif
 c
       allocate(plm(3,0:3,nr))
       allocate(bvec(3,-2:2,nr), bvecdt(3,-2:2,nr),
